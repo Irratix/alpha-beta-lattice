@@ -8,14 +8,14 @@
     c.height = cell_width * 16;
 
     const draw_centers = function() {
-        ctx.fillStyle = "white";
+        ctx.fillStyle = "lime";
         for (let i = 0; i < 16; i++) {
             for (let j = 0; j <16; j++) {
                 ctx.beginPath();
                 ctx.arc(
                     (i + 0.5) * cell_width, 
                     (j + 0.5) * cell_width, 
-                    cell_width / 8,
+                    cell_width / 4,
                     0,
                     2 * Math.PI
                 );
@@ -26,15 +26,15 @@
 
     const draw_arms = function(lattice) {
         ctx.strokeStyle = "white";
-        ctx.strokeWidth = cell_width / 16;
+        ctx.lineWidth = cell_width / 16;
         for (let i = 0; i < 16; i++) {
             for (let j = 0; j <16; j++) {
                 const num = lattice[i + 16 * j];
+                if (num === -1) continue;
                 for (let k = 0; k < 8; k++) {
                     ctx.beginPath();
                     ctx.moveTo((i + 0.5) * cell_width, (j + 0.5) * cell_width);
                     if ((num >> k) & 1) {
-                        console.log(k);
                         switch (k) {
                             case 0:
                                 ctx.lineTo((i + 1) * cell_width, j * cell_width);
@@ -69,12 +69,139 @@
     }
 
     const draw_lattice = function(lattice) {
-        console.log(lattice);
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, c.width, c.height);
-        draw_centers();
         draw_arms(lattice);
+        draw_centers();
     }
 
-    draw_lattice([...Array(256).keys()]);
+    const xor = function(a, b) {
+        if (a && b) return true;
+        if (!a && !b) return true;
+        return false;
+    }
+
+    const can_place = function(num, lattice, pos, used) {
+        let in_use = [...used];
+        
+        // filter out edges
+        if (pos < 16 && (num & 0b11000001)) return false;
+        if ((pos % 16 === 0) && (num & 0b01110000)) return false;
+        if ((pos % 16 === 15) && (num & 0b00000111)) return false;
+        if (pos >= 240 && (num & 0b00011100)) return false;
+
+        // make sure there are enough numbers left for edges
+        in_use[num] = true;
+        let top = 0, left = 0, bottom = 0, right = 0;
+        let top_rem = 16, left_rem = 16, bottom_rem = 16, right_rem = 16;
+        for (let i = 0; i < 256; i++) {
+            if (!in_use[i]) {
+                if (!(i & 0b11000001)) top++;
+                if (!(i & 0b01110000)) left++;
+                if (!(i & 0b00000111)) right++;
+                if (!(i & 0b00011100)) bottom++;
+            }
+            if (lattice[i] !== -1) {
+                if (i < 16) top_rem--;
+                if (i % 16 === 0) left_rem--;
+                if (i % 16 === 15) right_rem--;
+                if (i >= 240) bottom_rem--;
+            }
+        }
+        if (top < top_rem) return false;
+        if (left < left_rem) return false;
+        if (right < right_rem) return false;
+        if (bottom < bottom_rem) return false;
+        in_use[num] = false;
+
+        // check connections
+        if (pos >= 15 &&
+            lattice[pos - 15] !== -1 && 
+            !xor(num & 0b00000001, lattice[pos - 15] & 0b00010000)) return false;
+        if (pos >= 16 &&
+            lattice[pos - 16] !== -1 && 
+            !xor(num & 0b10000000, lattice[pos - 16] & 0b00001000)) return false;
+        if (pos >= 17 &&
+            lattice[pos - 17] !== -1 && 
+            !xor(num & 0b01000000, lattice[pos - 17] & 0b00000100)) return false;
+        if (pos >= 1 &&
+            lattice[pos - 1] !== -1 && 
+            !xor(num & 0b00100000, lattice[pos - 1]  & 0b00000010)) return false;
+        if (pos < 255 &&
+            lattice[pos + 1] !== -1 && 
+            !xor(num & 0b00000010, lattice[pos + 1]  & 0b00100000)) return false;
+        if (pos < 241 &&
+            lattice[pos + 15] !== -1 && 
+            !xor(num & 0b00010000, lattice[pos + 15] & 0b00000001)) return false;
+        if (pos < 240 &&
+            lattice[pos + 16] !== -1 && 
+            !xor(num & 0b00001000, lattice[pos + 16] & 0b10000000)) return false;
+        if (pos < 239 &&
+            lattice[pos + 17] !== -1 && 
+            !xor(num & 0b00000100, lattice[pos + 17] & 0b01000000)) return false;
+        return true;
+    }
+    
+    const back_track = async function(lattice, used, idx = 0) {
+        let pos = order[idx];
+        if (pos === undefined) return lattice;
+
+        if (idx >= max_pos) {
+            max_pos = idx;
+            draw_lattice(lattice);
+            await nextFrame();
+        }
+
+        for (let i = 0; i < 256; i++) {
+            if (!used[i] && can_place(i, lattice, pos, used)) {
+                lattice[pos] = i;
+                used[i] = true;
+
+                const sol = await back_track(lattice, used, idx + 1);
+                if (sol !== false) return sol;
+
+                used[i] = false;
+            }
+        }
+
+        lattice[pos] = -1;
+        return false;
+    };
+
+
+    const solve = async function() {
+        let lattice = [], used = [];
+        for (let i = 0; i < 256; i++) {
+            lattice[i] = -1;
+            used[i] = false;
+        }
+        return await back_track(lattice, used);
+    };
+
+
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+
+    // process order
+    /* linear order */
+    let order = [...Array(256).keys()];
+    
+    /* edges first */
+    // let order = [
+    //     0, 15, 240, 255, // corners
+    //     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, // top row
+    //     254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, // bottom row
+    //     31, 47, 63, 79, 95, 111, 127, 143, 159, 175, 191, 207, 223, 239, // right column
+    //     224, 208, 192, 176, 160, 144, 128, 112, 96, 80, 64, 48, 32, 16, // left column
+    // ];
+
+    // draw_lattice([...Array(256).keys()]);
+    let max_pos = 0;
+    (async () => {
+        const solution = await solve();
+        draw_lattice(solution);
+        console.log(solution);
+        console.log(max_pos);
+        console.log("done!");
+    })();
 </script>
