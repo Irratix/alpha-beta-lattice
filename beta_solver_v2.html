@@ -1,16 +1,21 @@
 <!DOCTYPE html>
 <canvas id="c"></canvas>
+<style>
+  html, body, canvas {
+    background-color: black;
+  }
+</style>
 <script>
     c = document.getElementById("c");
     ctx = c.getContext("2d");
-    cell_width = 64;
+    cell_width = 50;
     c.width = cell_width * 16;
     c.height = cell_width * 16;
 
     const draw_centers = function(lattice) {
         for (let i = 0; i < 16; i++) {
             for (let j = 0; j <16; j++) {
-                ctx.fillStyle = lattice[16 * j + i] !== -1 ? "lime" : "red";
+                ctx.fillStyle = lattice[16 * j + i] !== -1 ? "green" : "maroon";
                 ctx.beginPath();
                 ctx.arc(
                     (i + 0.5) * cell_width, 
@@ -68,19 +73,28 @@
         }
     }
 
+    const draw_numbers = function(lattice) {
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 1;
+        ctx.font = "15px sanserif";
+        ctx.textAlign = "center";
+        for (let i = 0; i < 16; i++) {
+            for (let j = 0; j <16; j++) {
+                let number = lattice[i + j * 16];
+                if (number !== -1)
+                    ctx.strokeText(number, (i + 0.5) * cell_width, (j + 0.6) * cell_width);
+            }
+        }
+    }
+
     const draw_lattice = function(lattice) {
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, c.width, c.height);
         draw_arms(lattice);
         draw_centers(lattice);
+        draw_numbers(lattice);
     }
 
-    const xor = function(a, b) {
-        if (a && b) return true;
-        if (!a && !b) return true;
-        return false;
-    }
-    
     const initial_filter = function(options) {
         const options_loc = [... options].map(a => [... a]);
         for (let i in options) {
@@ -94,43 +108,236 @@
         return options_loc;
     }
 
+    const filter_by_position = function(options, position, except) {
+        return options.map((arr, key) => key == except ? arr : arr.filter(i => i != position));
+    }
+
+    const filter_neighbors = function(lattice, options, number, position) {
+        // shallow copy of options arrays
+        let options_loc = options.map(arr => [...arr]);
+
+        const x = position % 16;
+        const y = (position / 16) | 0;
+
+        // define neighbor offsets and corresponding bits
+        const neighbors = [
+            {dx: 1, dy: -1, bit: 0, opp: 4},
+            {dx: 1, dy: 0,  bit: 1, opp: 5},
+            {dx: 1, dy: 1,  bit: 2, opp: 6},
+            {dx: 0, dy: 1,  bit: 3, opp: 7},
+            {dx: -1, dy: 1, bit: 4, opp: 0},
+            {dx: -1, dy: 0, bit: 5, opp: 1},
+            {dx: -1, dy: -1,bit: 6, opp: 2},
+            {dx: 0, dy: -1, bit: 7, opp: 3}
+        ];
+
+        for (let n of neighbors) {
+            const nx = x + n.dx;
+            const ny = y + n.dy;
+
+            // skip off-board neighbors
+            if (nx < 0 || nx >= 16 || ny < 0 || ny >= 16) continue;
+            const npos = ny * 16 + nx;
+
+            const number_has_arm = (number >> n.bit) & 1;
+
+            // only process numbers whose opposite bit is set
+            for (let key = 0; key < 256; key++) {
+                if ((key >> n.opp) & 1) {
+                    // remove position if neighbor connection is incompatible
+                    if (!!number_has_arm !== !!((key >> n.opp) & 1)) {
+                        options_loc[key] = options_loc[key].filter(p => p !== npos);
+                    }
+                }
+            }
+        }
+
+        return options_loc;
+    };
+
     const filter_search_space = function(lattice, options, number, position) {
         let options_loc = [... options].map(x => [... x]);
 
         // first, filter out all options with the same position
-        options_loc = options_loc.map((arr, key) => key == number ? arr : arr.filter(i => i != position));
+        options_loc = filter_by_position(options_loc, position, number);
 
         // second, filter neighbors
-        if (position > 15 && position % 16 !== 15)
-            options_loc = options_loc.map((arr, key) => !(number & 0b00000001) === !(key & 0b00010000) ? arr : arr.filter(x => x !== position - 15));
-        if (position % 16 !== 15)
-            options_loc = options_loc.map((arr, key) => !(number & 0b00000010) === !(key & 0b00100000) ? arr : arr.filter(x => x !== position + 1));
-        if (position < 240 && position % 16 !== 15)
-            options_loc = options_loc.map((arr, key) => !(number & 0b00000100) === !(key & 0b01000000) ? arr : arr.filter(x => x !== position + 17));
-        if (position < 240)
-            options_loc = options_loc.map((arr, key) => !(number & 0b00001000) === !(key & 0b10000000) ? arr : arr.filter(x => x !== position + 16));
-        if (position < 240 && position % 16 !== 0)
-            options_loc = options_loc.map((arr, key) => !(number & 0b00010000) === !(key & 0b00000001) ? arr : arr.filter(x => x !== position + 15));
-        if (position % 16 !== 0)
-            options_loc = options_loc.map((arr, key) => !(number & 0b00100000) === !(key & 0b00000010) ? arr : arr.filter(x => x !== position - 1));
-        if (position > 15 && position % 16 !== 0)
-            options_loc = options_loc.map((arr, key) => !(number & 0b01000000) === !(key & 0b00000100) ? arr : arr.filter(x => x !== position + 17));
-        if (position > 15)
-            options_loc = options_loc.map((arr, key) => !(number & 0b10000000) === !(key & 0b00001000) ? arr : arr.filter(x => x !== position + 16));
+        options_loc = filter_neighbors(lattice, options_loc, number, position);
 
-        // lastly, check for impossibilities
-        for (let i in options_loc) {
-            i = Number(i);
-            if (options_loc[i].length === 0) return false;
-        }
         return options_loc;
     };
 
-    const back_track = async function(lattice, options, pos = 255) {
+    const edge_feasibility_check = function(lattice, options) {
+        let top_needed = 0, right_needed = 0, bottom_needed = 0, left_needed = 0;
+        let top_available = 0, right_available = 0, bottom_available = 0, left_available = 0;
+        for (let key = 0; key < 256; key++) {
+            if (lattice[key] === -1) {
+                if (is_edge(key, "top")) top_needed++;
+                if (is_edge(key, "right")) right_needed++;
+                if (is_edge(key, "left")) left_needed++;
+                if (is_edge(key, "bottom")) bottom_needed++;
+            }
+            if (options[key].length > 1) {
+                top_available += options[key].some(x => is_edge(x, "top"));
+                right_available += options[key].some(x => is_edge(x, "right"));
+                bottom_available += options[key].some(x => is_edge(x, "bottom"));
+                left_available += options[key].some(x => is_edge(x, "left"));
+            }
+        }
+        if (top_needed > top_available) return false;
+        if (right_needed > right_available) return false;
+        if (bottom_needed > bottom_available) return false;
+        if (left_needed > left_available) return false;
+        return true;
+    }
+
+    const full_feasibility_check = function(lattice, options, number, position) {
+        // first, check for edge availability
+        if (!edge_feasibility_check(lattice, options)) return false;
+        
+        // second, check for numbers with no available positions
+        for (let i in options) 
+            if (options[i].length === 0) return false;
+        
+        return true;
+    }
+
+    const is_edge = function(pos, edge) {
+        switch (edge) {
+            case "top":
+                return pos < 16;
+            case "bottom":
+                return pos >= 240;
+            case "left":
+                return pos % 16 === 0;
+            case "right":
+                return pos % 16 === 15;
+        }
+        return false;
+    }
+
+    const propagate = function(lattice, options) {
+        let changed = true;
+        outer:
+        while (changed) {
+            changed = false;
+            // place if a number can only be at one spot
+            for (let key = 0; key < 256; key++) {
+                const arr = options[key];
+                if (arr.length === 1 && lattice[arr[0]] === -1) {
+                    const res = place_number_and_prop(lattice, options, key, arr[0]);
+                    if (!res.can_place) return { can_place: false };
+                    lattice = res.lattice;
+                    options = res.options;
+                    changed = true;
+                    continue outer; // restart scan
+                }
+            }
+
+            // place if there can only be one number at a spot
+            // this should theoretically already be covered by the filters,
+            // so this might only prune branches rather than ever place numbers
+            for (let key = 0; key < 256; key++) {
+                if (lattice[key] !== -1) continue;
+                let number = 0;
+                let is_boxed = true;
+                if (!is_edge(key, "right") && !is_edge(key, "top")) {
+                    if (lattice[key - 15] === -1) continue;
+                    number |= lattice[key - 15] & 0b00010000 ? 0b00000001 : 0;
+                }
+                if (!is_edge(key, "right")) {
+                    if (lattice[key + 1] === -1) continue;
+                    number |= lattice[key + 1] & 0b00100000 ? 0b00000010 : 0;
+                }
+                if (!is_edge(key, "right") && !is_edge(key, "bottom")) {
+                    if (lattice[key + 17] === -1) continue;
+                    number |= lattice[key + 17] & 0b01000000 ? 0b00000100 : 0;
+                }
+                if (!is_edge(key, "bottom")) {
+                    if (lattice[key + 16] === -1) continue;
+                    number |= lattice[key + 16] & 0b10000000 ? 0b00001000 : 0;
+                }
+                if (!is_edge(key, "left") && !is_edge(key, "bottom")) {
+                    if (lattice[key + 15] === -1) continue;
+                    number |= lattice[key + 15] & 0b00000001 ? 0b00010000 : 0;
+                }
+                if (!is_edge(key, "left")) {
+                    if (lattice[key - 1] === -1) continue;
+                    number |= lattice[key - 1] & 0b00000010 ? 0b00100000 : 0;
+                }
+                if (!is_edge(key, "left") && !is_edge(key, "top")) {
+                    if (lattice[key - 17] === -1) continue;
+                    number |= lattice[key - 17] & 0b00000100 ? 0b01000000 : 0;
+                }
+                if (!is_edge(key, "top")) {
+                    if (lattice[key - 16] === -1) continue;
+                    number |= lattice[key - 16] & 0b00001000 ? 0b10000000 : 0;
+                }
+                if (!options[number].includes(key)) return {can_place: false};
+                // console.log(number);
+                const res = place_number_and_prop(lattice, options, number, key);
+                if (!res.can_place) return { can_place: false };
+                lattice = res.lattice;
+                options = res.options;
+                changed = true;
+                continue outer;
+            }
+        }
+        return {
+            lattice, 
+            options, 
+            can_place: true
+        };
+    }
+
+    // returns whether or not the number can be placed, as well as changed lattice and options
+    const place_number_and_prop = function(lattice, options, number, pos) {
+        lattice = [... lattice];
+        options = options.map(arr => [... arr]);
+
+        // place
+        if (!options[number].includes(pos)) return {can_place: false};
+        lattice[pos] = number;
+        options[number] = [pos];
+
+        // filter search space
+        options = filter_search_space(lattice, options, number, pos);
+
+        // check feasibility
+        let is_feasible = full_feasibility_check(lattice, options, number, pos);
+        if (!is_feasible) return {can_place: false};
+
+        // propagate
+        let result = propagate(lattice, options);
+        
+        return result;
+    }
+
+    const select_next_idx = function(options) {
+        let amt = 256;
+        let choice = -1;
+        for (let i in options) {
+            if (options[i].length < amt && options[i].length > 1) {
+                amt = options[i].length;
+                choice = Number(i);
+            }
+        }
+        return choice;
+    }
+
+    const count_placed = function(lattice) {
+        let count = 0;
+        for (let i of lattice) count += i !== -1;
+        return count;
+    }
+
+    const back_track = async function(lattice, options, pos) {
         if (pos === -1) return lattice;
 
-        if (pos <= min_pos) {
-            min_pos = pos;
+        const depth = count_placed(lattice);
+        if (depth >= max_depth) {
+            console.log(depth);
+            max_depth = depth;
             draw_lattice(lattice);
             await nextFrame();
         }
@@ -139,16 +346,15 @@
             i = Number(i);
             let lattice_loc = [...lattice];
             let options_loc = [...options].map(x => [... x]);
-            lattice_loc[i] = pos;
-            options_loc[pos] = [i];
-            let filtered = filter_search_space(lattice_loc, options_loc, pos, i);
-            if (filtered === false) continue;
-            let solution = await back_track(lattice_loc, filtered, pos - 1);
+            const result = place_number_and_prop(lattice_loc, options_loc, pos, i);
+            lattice_loc = result.lattice;
+            options_loc = result.options;
+            if (result.can_place === false) continue;
+            let solution = await back_track(lattice_loc, options_loc, select_next_idx(options_loc));
             if (solution !== false) return solution;
         }
         return false;
     };
-
 
     const solve = async function() {
         let lattice = [], options = [];
@@ -157,19 +363,19 @@
             options[i] = [];
             for (let j = 0; j < 256; j++) options[i].push(j);
         }
+        // options = options.map(arr => arr.sort(_ => Math.random() - .5))
         options = initial_filter(options);
-        return await back_track(lattice, options);
+        return await back_track(lattice, options, select_next_idx(options));
     };
 
 
     const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
 
-    let min_pos = 256;
+    let max_depth = 0;
     (async () => {
         const solution = await solve();
         draw_lattice(solution);
         console.log(solution);
-        console.log(min_pos);
         console.log("done!");
     })();
 </script>
