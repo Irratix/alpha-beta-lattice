@@ -340,6 +340,57 @@
     const can_place = function (lattice, options, number, pos) {
         if (!options[number].includes(pos)) return false;
         if (lattice[pos] !== -1) return false;
+        let ones = 0, zeroes = 0;
+        // top left
+        if (is_edge(pos, "top") && is_edge(pos, "left")) {
+            zeroes |= 0b01000000;
+        } else if (!is_edge(pos, "top") && lattice[pos - 17] !== -1 && (lattice[pos - 17] & 0b00000100) !== 0) {
+            ones |= 0b01000000;
+        }
+        // top
+        if (is_edge(pos, "top")) {
+            zeroes |= 0b10000000;
+        } else if (lattice[pos - 16] !== -1 && (lattice[pos - 16] & 0b00001000) !== 0) {
+            ones |= 0b10000000;
+        }
+        // top right
+        if (is_edge(pos, "top") && is_edge(pos, "right")) {
+            zeroes |= 0b00000001;
+        } else if (!is_edge(pos, "top") && lattice[pos - 15] !== -1 && (lattice[pos - 15] & 0b00010000) !== 0) {
+            ones |= 0b00000001;
+        }
+        // right
+        if (is_edge(pos, "right")) {
+            zeroes |= 0b00000010;
+        } else if (lattice[pos + 1] !== -1 && (lattice[pos + 1] & 0b00100000) !== 0) {
+            ones |= 0b00000010;
+        }
+        // bottom right
+        if (is_edge(pos, "bottom") && is_edge(pos, "right")) {
+            zeroes |= 0b00000100;
+        } else if (!is_edge(pos, "bottom") && lattice[pos + 17] !== -1 && (lattice[pos + 17] & 0b01000000) !== 0) {
+            ones |= 0b00000100;
+        }
+        // bottom
+        if (is_edge(pos, "bottom")) {
+            zeroes |= 0b00001000;
+        } else if (lattice[pos + 16] !== -1 && (lattice[pos + 16] & 0b10000000) !== 0) {
+            ones |= 0b00001000;
+        }
+        // bottom left
+        if (is_edge(pos, "bottom") && is_edge(pos, "left")) {
+            zeroes |= 0b00010000;
+        } else if (!is_edge(pos, "bottom") && lattice[pos + 15] !== -1 && (lattice[pos + 15] & 0b00000001) !== 0) {
+            ones |= 0b00010000;
+        }
+        // left
+        if (is_edge(pos, "left")) {
+            zeroes |= 0b00100000;
+        } else if (lattice[pos + 1] !== -1 && (lattice[pos + 1] & 0b00000010) !== 0) {
+            ones |= 0b00100000;
+        }
+        
+        if ((number & ones) !== ones || (number & zeroes) !== 0) return false;
         return true;
     }
 
