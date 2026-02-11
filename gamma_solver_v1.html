@@ -193,11 +193,31 @@
         return true;
     }
 
+    const cross_feasibility_check = function (lattice) {
+        for (let i = 0; i < 15; i++) {
+            for (let j = 0; j < 15; j++) {
+                let coord = i + 16 * j;
+                if (lattice[coord] !== -1 && (lattice[coord] & 0b00000100) && 
+                    lattice[coord + 1] !== -1 && (lattice[coord + 1] & 0b00010000)) return false;
+                if (lattice[coord + 1] !== -1 && (lattice[coord + 1] & 0b00010000) && 
+                    lattice[coord + 17] !== -1 && (lattice[coord + 17] & 0b01000000)) return false;
+                if (lattice[coord + 17] !== -1 && (lattice[coord + 17] & 0b01000000) && 
+                    lattice[coord + 16] !== -1 && (lattice[coord + 16] & 0b00000001)) return false;
+                if (lattice[coord + 16] !== -1 && (lattice[coord + 16] & 0b00000001) && 
+                    lattice[coord] !== -1 && (lattice[coord] & 0b00000100)) return false;
+            }
+        }
+        return true;
+    }
+
     const full_feasibility_check = function (lattice, options, number, position) {
         // first, check for edge availability
         if (!edge_feasibility_check(lattice, options)) return false;
 
-        // second, check for numbers with no available positions
+        // second, check for the gamma condition
+        if (!cross_feasibility_check(lattice)) return false;
+
+        // third, check for numbers with no available positions
         for (let i in options)
             if (options[i].length === 0) return false;
 
