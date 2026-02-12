@@ -15,11 +15,11 @@ A number can have 0, 1, 2, 3 or 4 diagonals. Let's count each of them:
 For every set of diagonals, we independently have 2^4=16 combinations of orthogonals. 
 So we will be multiplying all combinations by 16. <br>
 There are 4 ways to have 1 diagonal, so there are 16 * 4 = 64 numbers with one diagonal.  <br>
-There are 4 + 3 = 7 ways to have 2 diagonals, so there are 16 * 7 = 112 numbers with two diagonals. <br>
+There are 4 * 3  / 2 = 6 ways to have 2 diagonals, so there are 16 * 6 = 96 numbers with two diagonals. <br>
 There are 4 ways to have 3 diagonals, so there are 16 * 4 = 64 numbers with three diagonals. <br>
 There is 1 way to have 4 diagonals, so there are 16 numbers with 4 diagonals. <br>
 
-Now we count them up and divide by two: (1 * 64 + 2 * 112 + 3 * 64 + 4 * 16) / 2 = 272. 272 is bigger than 225.
+Now we count them up and divide by two: (1 * 64 + 2 * 96 + 3 * 64 + 4 * 16) / 2 = 256. 256 is bigger than 225.
 Therefore, when we place a diagonal in every available spot, there must still be more diagonals and we'd have to put those somewhere where it would cross another.
 Therefore the gamma lattice does not exist.
 
