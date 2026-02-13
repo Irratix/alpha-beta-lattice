@@ -25,5 +25,7 @@ Therefore the gamma lattice does not exist.
 
 The gamma lattice solver actually doesn't get very far at all, only filling in about 59 slots. 
 I'm sure it could get further with more optimizations, but since it's guaranteed not to find a solution I will leave it where it is.
-I'm also satisfied with beta_solver_v2 but there is an open question which would demand much further optimization: how many beta lattices are there?
-Another open question that I may get to eventually is the existence of the mini-lattice: are there any 4x4 grids where the arms are only orthogonal and they all connect?
+However, we can add a relaxation that does make it theoretically possible. 
+If we allow wrapping around the edges we have 16 x 16 = 256 boxes for diagonals, exactly enough.
+This leads to the toroidal gamma solver, which successfully finds a solution.
+I thought this was surprising, I was rather convinced this wouldn't exist.
