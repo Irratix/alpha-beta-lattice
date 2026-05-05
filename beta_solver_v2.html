@@ -369,7 +369,7 @@
         } else if (lattice[pos + 1] !== -1 && (lattice[pos + 1] & 0b00000010) !== 0) {
             ones |= 0b00100000;
         }
-        
+
         if ((number & ones) !== ones || (number & zeroes) !== 0) return false;
         return true;
     }
