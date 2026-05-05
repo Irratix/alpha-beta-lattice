@@ -2,39 +2,37 @@ import {
     select_next_idx,
     ctz_bi
 } from './util.js';
-import { filter_search_space } from './filter.js';
-import { full_feasibility_check } from './test.js';
 import {
     draw_lattice,
     nextFrame
 } from './view.js';
+import {
+    ptrOptions,
+    ptrLattice,
+    ptrPlaced,
+    wasmOptions,
+    wasmLattice,
+    wasmPlaced,
+    place_number_wasm
+} from './wasm.js';
 
 const max_solutions = 200;
 let solution_counter = 0;
 
 // returns whether or not the number can be placed, as well as changed lattice and options
 const place_number = function (lattice, options, placed, number, pos) {
-    // place
-    if ((options[4 * number + (pos >> 6)] & (1n << BigInt(pos & 63))) === 0n) return { can_place: false };
-    lattice[pos] = number;
-    options[4 * number] = 0n;
-    options[4 * number + 1] = 0n;
-    options[4 * number + 2] = 0n;
-    options[4 * number + 3] = 0n;
-    placed[number] = pos;
-
-    // filter search space
-    options = filter_search_space(lattice, options, number, pos);
-
-    // check feasibility
-    let is_feasible = full_feasibility_check(lattice, options, placed, number, pos);
-    if (!is_feasible) return { can_place: false };
-
+    wasmOptions.set(options);
+    wasmLattice.set(lattice);
+    wasmPlaced.set(placed);
+    const result = place_number_wasm(ptrLattice, ptrOptions, ptrPlaced, number, pos);
+    options.set(wasmOptions);
+    lattice.set(wasmLattice);
+    placed.set(wasmPlaced);
     return {
         lattice,
         options,
         placed,
-        can_place: true
+        can_place: result ? true : false
     };
 }
 

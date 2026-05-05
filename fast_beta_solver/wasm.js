@@ -3,7 +3,7 @@ import createModule from "./wasm/functions.js";
 const wasmModule = await createModule();
 
 export const ctz_bi_wasm = wasmModule.cwrap('ctz_bi', 'number', ['number']);
-export const filter_neighbors_wasm = wasmModule.cwrap('filter_neighbors', 'number', ['number', 'number', 'number']);
+export const place_number_wasm = wasmModule.cwrap('place_number', 'number', ['number', 'number', 'number', 'number', 'number']);
 export const select_idx_wasm = wasmModule.cwrap('select_idx', 'void', ['number', 'number', 'number']);
 
 const optionsLength = 256 * 4;

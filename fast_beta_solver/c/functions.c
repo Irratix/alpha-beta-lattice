@@ -15,7 +15,17 @@ int ctz_bi(uint64_t n)
     return __builtin_ctzll(n);
 }
 
-uint64_t *filter_neighbors(uint64_t *opt, int num, int pos)
+void filter_by_position(uint64_t *options, int pos, int exc)
+{
+    for (int i = 0; i < 256; i++)
+    {
+        if (i == exc)
+            continue;
+        options[4 * i + (pos >> 6)] &= ~(1ULL << (pos & 63));
+    }
+}
+
+void filter_neighbors(uint64_t *opt, int num, int pos)
 {
     int x = pos & 15;
     int y = pos >> 4;
@@ -50,8 +60,47 @@ uint64_t *filter_neighbors(uint64_t *opt, int num, int pos)
             }
         }
     }
+}
 
-    return opt;
+void filter_search_space(uint64_t *opt, int num, int pos)
+{
+    filter_by_position(opt, pos, num);
+    filter_neighbors(opt, num, pos);
+}
+
+int is_feasible(uint64_t *opt, int16_t *placed)
+{
+    for (int i = 0; i < 256; i++)
+    {
+        if (placed[i] != -1)
+            continue;
+        if (opt[4 * i] > 0)
+            continue;
+        if (opt[4 * i + 1] > 0)
+            continue;
+        if (opt[4 * i + 2] > 0)
+            continue;
+        if (opt[4 * i + 3] > 0)
+            continue;
+        return 0;
+    }
+    return 1;
+}
+
+int place_number(int16_t *lattice, uint64_t *opt, int16_t *placed, int num, int pos)
+{
+    if ((opt[4 * num + (pos >> 6)] & (1ULL << (pos & 63))) == 0)
+        return 0;
+    lattice[pos] = num;
+    placed[num] = pos;
+    opt[4 * num] = 0;
+    opt[4 * num + 1] = 0;
+    opt[4 * num + 2] = 0;
+    opt[4 * num + 3] = 0;
+
+    filter_search_space(opt, num, pos);
+
+    return is_feasible(opt, placed);
 }
 
 void select_idx(int16_t *lattice, uint64_t *options, int16_t *placed, int *out)

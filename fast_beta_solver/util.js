@@ -12,20 +12,6 @@ import {
 
 } from './wasm.js';
 
-export const is_edge = function (pos, edge) {
-    switch (edge) {
-        case "top":
-            return pos < 16;
-        case "bottom":
-            return pos >= 240;
-        case "left":
-            return pos % 16 === 0;
-        case "right":
-            return pos % 16 === 15;
-    }
-    return false;
-}
-
 // gets the exponent of 2 of the lowest bit in a bigint
 export const ctz_bi = function (n) {
     return ctz_bi_wasm(n);
