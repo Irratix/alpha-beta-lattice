@@ -1,3 +1,9 @@
+import {
+    ptrOptions,
+    wasmOptions,
+    filter_neighbors_wasm
+} from './wasm.js';
+
 export const initial_filter = function (options) {
     for (let i = 0; i < 256; i++) {
         if (i & 0b11000001) {
@@ -45,29 +51,34 @@ const neighbors = [
 ];
 
 const filter_neighbors = function (options, number, position) {
-    const x = position % 16;
-    const y = (position / 16) | 0;
-
-    for (let n of neighbors) {
-        const nx = x + n.dx;
-        const ny = y + n.dy;
-
-        // skip off-board neighbors
-        if (nx < 0 || nx >= 16 || ny < 0 || ny >= 16) continue;
-        const npos = ny * 16 + nx;
-
-        const number_has_arm = (number >> n.bit) & 1;
-
-        // only process numbers whose opposite bit is set
-        for (let key = 0; key < 256; key++) {
-            // remove position if neighbor connection is incompatible
-            if (!!number_has_arm !== !!((key >> n.opp) & 1)) {
-                options[4 * key + (npos >> 6)] &= 0xffffffffffffffffn ^ (1n << BigInt(npos & 63));
-            }
-        }
-    }
-
+    wasmOptions.set(options);
+    const result = filter_neighbors_wasm(ptrOptions, number, position);
+    options.set(wasmOptions);
     return options;
+
+    // const x = position % 16;
+    // const y = (position / 16) | 0;
+
+    // for (let n of neighbors) {
+    //     const nx = x + n.dx;
+    //     const ny = y + n.dy;
+
+    //     // skip off-board neighbors
+    //     if (nx < 0 || nx >= 16 || ny < 0 || ny >= 16) continue;
+    //     const npos = ny * 16 + nx;
+
+    //     const number_has_arm = (number >> n.bit) & 1;
+
+    //     // only process numbers whose opposite bit is set
+    //     for (let key = 0; key < 256; key++) {
+    //         // remove position if neighbor connection is incompatible
+    //         if (!!number_has_arm !== !!((key >> n.opp) & 1)) {
+    //             options[4 * key + (npos >> 6)] &= 0xffffffffffffffffn ^ (1n << BigInt(npos & 63));
+    //         }
+    //     }
+    // }
+
+    // return options;
 };
 
 export const filter_search_space = function (lattice, options, number, position) {

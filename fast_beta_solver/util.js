@@ -1,3 +1,10 @@
+import {
+    ptrOptions,
+    wasmOptions,
+    count_ones_wasm,
+    ctz_bi_wasm
+} from './wasm.js';
+
 export const is_edge = function (pos, edge) {
     switch (edge) {
         case "top":
@@ -15,39 +22,14 @@ export const is_edge = function (pos, edge) {
 // since this is a helper function for select_next_idx
 // this function is adapted to count ones in 4 consecutive entries of an options object
 const count_ones = function (arr, num) {
-    let count = 0;
-    let i;
-    i = arr[4 * num];
-    while (i) {
-        i &= i - 1n;
-        count++;
-    }
-    i = arr[4 * num + 1];
-    while (i) {
-        i &= i - 1n;
-        count++;
-    }
-    i = arr[4 * num + 2];
-    while (i) {
-        i &= i - 1n;
-        count++;
-    }
-    i = arr[4 * num + 3];
-    while (i) {
-        i &= i - 1n;
-        count++;
-    }
-    return count;
+    wasmOptions.set(arr);
+    const result = count_ones_wasm(ptrOptions, num);
+    return result;
 }
 
 // gets the exponent of 2 of the lowest bit in a bigint
 export const ctz_bi = function (n) {
-    let count = 0;
-    while ((n & 1n) === 0n) {
-        n >>= 1n;
-        count++;
-    }
-    return count;
+    return ctz_bi_wasm(n);
 }
 
 // this uses a hybrid approach:
