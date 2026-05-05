@@ -53,3 +53,46 @@ uint64_t *filter_neighbors(uint64_t *opt, int num, int pos)
 
     return opt;
 }
+
+void select_idx(int16_t *lattice, uint64_t *options, int16_t *placed, int *out)
+{
+    int choice_amt = 156;
+    int choice = -1;
+    int choice_type = 0;
+
+    // check which number has the fewest available positions
+    for (int i = 0; i < 256; i++)
+    {
+        if (placed[i] != -1)
+            continue;
+        int options_n = count_ones(options, i);
+        if (options_n < choice_amt && options_n != 0)
+        {
+            choice_amt = options_n;
+            choice = i;
+        }
+    }
+
+    // second we check if there are positions with fewer available numbers
+    for (int key = 0; key < 256; key++)
+    {
+        if (lattice[key] != -1)
+            continue;
+        int count = 0;
+        for (int num = 0; num < 256; num++)
+        {
+            if (placed[num] != -1)
+                continue;
+            if (options[4 * num + (key >> 6)] & (1ULL << (key & 63)))
+                count++;
+        }
+        if (count < choice_amt)
+        {
+            choice_amt = count;
+            choice = key;
+            choice_type = 1;
+        }
+    }
+    out[0] = choice;
+    out[1] = choice_type;
+}

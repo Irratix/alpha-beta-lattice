@@ -1,8 +1,15 @@
 import {
     ptrOptions,
+    ptrLattice,
+    ptrPlaced,
     wasmOptions,
-    count_ones_wasm,
-    ctz_bi_wasm
+    wasmLattice,
+    wasmPlaced,
+    ptrIdx,
+    wasmIdx,
+    ctz_bi_wasm,
+    select_idx_wasm
+
 } from './wasm.js';
 
 export const is_edge = function (pos, edge) {
@@ -19,14 +26,6 @@ export const is_edge = function (pos, edge) {
     return false;
 }
 
-// since this is a helper function for select_next_idx
-// this function is adapted to count ones in 4 consecutive entries of an options object
-const count_ones = function (arr, num) {
-    wasmOptions.set(arr);
-    const result = count_ones_wasm(ptrOptions, num);
-    return result;
-}
-
 // gets the exponent of 2 of the lowest bit in a bigint
 export const ctz_bi = function (n) {
     return ctz_bi_wasm(n);
@@ -36,33 +35,13 @@ export const ctz_bi = function (n) {
 // both assigning a position to a number and assigning a number to a position are possible
 // we always take the option with the fewest available option, to reduce the branch factor as much as possible
 export const select_next_idx = function (lattice, options, placed) {
-    let choice_amt = 256;
-    let choice = -1;
-    let choice_type = "num_to_pos";
-    // first we check which number has the fewest available positions
-    for (let i = 0; i < 256; i++) {
-        if (placed[i] !== -1) continue;
-        let options_n = count_ones(options, i);
-        if (options_n < choice_amt && options_n !== 0) {
-            choice_amt = options_n;
-            choice = i;
-        }
-    }
+    wasmLattice.set(lattice);
+    wasmOptions.set(options);
+    wasmPlaced.set(placed);
+    select_idx_wasm(ptrLattice, ptrOptions, ptrPlaced, ptrIdx);
 
-    // second we check if there are positions with fewer available numbers
-    for (let key = 0; key < 256; key++) {
-        if (lattice[key] !== -1) continue;
-        let count = 0;
-        for (let num = 0; num < 256; num++) {
-            if (placed[num] !== -1) continue;
-            if (options[4 * num + (key >> 6)] & (1n << BigInt(key & 63))) count++;
-        }
-        if (count < choice_amt) {
-            choice_amt = count;
-            choice = key;
-            choice_type = "pos_to_num";
-        }
-    }
-
-    return { number: choice, type: choice_type };
+    return {
+        number: wasmIdx[0],
+        type: wasmIdx[1] ? "pos_to_num" : "num_to_pos"
+    };
 }
