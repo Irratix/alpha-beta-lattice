@@ -37,6 +37,8 @@ const solve = async function () {
 };
 
 (async () => {
+    const t = new Date();
     const solution = await solve();
     console.log("done!");
+    console.log("took", (new Date() - t) / 1000, "seconds");
 })();
