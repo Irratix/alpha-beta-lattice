@@ -1,4 +1,19 @@
-import { back_track } from './backtrack.js';
+import {
+    wasmModule,
+    init_stack_wasm,
+    get_solution_wasm,
+
+    ptrOptions,
+    wasmOptions,
+    ptrLattice,
+    wasmLattice,
+    ptrPlaced,
+    wasmPlaced,
+    find_next_solution_wasm
+} from './wasm.js';
+import { nextFrame, draw_lattice } from './view.js';
+
+const SOL_AMT = 1000;
 
 export const initial_filter = function (options) {
     for (let i = 0; i < 256; i++) {
@@ -26,6 +41,12 @@ export const initial_filter = function (options) {
 }
 
 
+export const get_solution = function() {
+    const ptr = get_solution_wasm();
+    return new Int16Array(wasmModule.HEAPU8.buffer, ptr, 256);
+}
+
+
 const solve = async function () {
     const lattice = new Int16Array(256).fill(-1);
     const placed = new Int16Array(256).fill(-1);
@@ -33,7 +54,26 @@ const solve = async function () {
 
     options = initial_filter(options);
 
-    return await back_track(lattice, options, placed);
+    wasmLattice.set(lattice);
+    wasmPlaced.set(placed);
+    wasmOptions.set(options);
+    init_stack_wasm(ptrLattice, ptrOptions, ptrPlaced);
+
+    const c = document.createElement("canvas");
+    c.width = 160;
+    c.height = 160;
+    const ctx = c.getContext("2d");
+
+    for (let i = 0; i < SOL_AMT; i++) {
+        find_next_solution_wasm();
+        const result = get_solution();
+        lattice.set(result);
+        draw_lattice(lattice);
+        await nextFrame();
+        console.log(i);
+    }
+
+    // return await back_track(lattice, options, placed);
 };
 
 (async () => {

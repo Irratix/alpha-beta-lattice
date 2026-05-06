@@ -1,10 +1,10 @@
 import createModule from "./wasm/functions.js";
 
-const wasmModule = await createModule();
+export const wasmModule = await createModule();
 
-export const ctz_bi_wasm = wasmModule.cwrap('ctz_bi', 'number', ['number']);
-export const place_number_wasm = wasmModule.cwrap('place_number', 'number', ['number', 'number', 'number', 'number', 'number']);
-export const select_idx_wasm = wasmModule.cwrap('select_idx', 'void', ['number', 'number', 'number']);
+export const init_stack_wasm = wasmModule.cwrap('init_stack', 'void', ['number', 'number', 'number']);
+export const get_solution_wasm = wasmModule.cwrap('get_solution', 'number', []);
+export const find_next_solution_wasm = wasmModule.cwrap('find_next_solution', 'number', []);
 
 const optionsLength = 256 * 4;
 export const ptrOptions = wasmModule._malloc((new BigInt64Array(optionsLength)).byteLength);

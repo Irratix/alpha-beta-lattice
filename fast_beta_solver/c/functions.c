@@ -1,4 +1,23 @@
 #include <stdint.h>
+#include <string.h>
+
+#define MAX_DEPTH 256
+
+typedef struct
+{
+    int16_t lattice[256];
+    uint64_t options[1024];
+    int16_t placed[256];
+    int choice;
+    int choice_type; // 0 = num_to_pos, 1 = pos_to_num
+    int current_w;   // for num_to_pos iteration
+    uint64_t mask;   // for num_to_pos iteration
+    int current_num; // for pos_to_num iteration
+    int is_init;     // indicates whether loop type for current depth is already determined
+} StackFrame;
+
+static StackFrame stack[MAX_DEPTH + 1];
+static int depth = 0;
 
 int count_ones(uint64_t *arr, int num)
 {
@@ -144,4 +163,118 @@ void select_idx(int16_t *lattice, uint64_t *options, int16_t *placed, int *out)
     }
     out[0] = choice;
     out[1] = choice_type;
+}
+
+void init_stack(int16_t *lattice, uint64_t *options, int16_t *placed)
+{
+    depth = 0;
+    memcpy(stack[0].lattice, lattice, 256 * sizeof(int16_t));
+    memcpy(stack[0].options, options, 1024 * sizeof(uint64_t));
+    memcpy(stack[0].placed, placed, 256 * sizeof(int16_t));
+    stack[0].is_init = 0;
+}
+
+int16_t *get_solution()
+{
+    return stack[256].lattice;
+}
+
+int find_next_solution()
+{
+    while (depth >= 0)
+    {
+        // solution found
+        if (depth == 256)
+        {
+            depth--;
+            return 1;
+        }
+
+        StackFrame *state = &stack[depth];
+
+        // get loop setup if necessary
+        if (!state->is_init)
+        {
+            int idx[2];
+            select_idx(state->lattice, state->options, state->placed, idx);
+            state->choice = idx[0];
+            state->choice_type = idx[1];
+
+            // start at index -1 because the body below will immediately increment
+            if (state->choice_type == 0)
+            {
+                state->current_w = -1;
+                state->mask = 0;
+            }
+            else
+            {
+                state->current_num = -1;
+            }
+
+            state->is_init = 1;
+        }
+
+        // we basically just test 1 number/position here either way
+        if (state->choice_type == 0)
+        {
+            // advance to next word if current mask exhausted
+            while (state->mask == 0)
+            {
+                state->current_w++;
+                if (state->current_w > 3)
+                {
+                    depth--;
+                    break;
+                }
+                state->mask = state->options[4 * state->choice + state->current_w];
+            }
+            if (state->current_w > 3)
+                continue;
+            int i = 64 * state->current_w + __builtin_ctzll(state->mask);
+            memcpy(stack[depth + 1].lattice, state->lattice, 256 * sizeof(int16_t));
+            memcpy(stack[depth + 1].options, state->options, 1024 * sizeof(uint64_t));
+            memcpy(stack[depth + 1].placed, state->placed, 256 * sizeof(int16_t));
+            stack[depth + 1].is_init = 0;
+
+            state->mask &= state->mask - 1;
+            int can_place = place_number(stack[depth + 1].lattice, stack[depth + 1].options, stack[depth + 1].placed, state->choice, i);
+            if (can_place)
+                depth++;
+        }
+        else
+        {
+            // advance to next number
+            state->current_num++;
+
+            // skip placed numbers and numbers that can't go at this position
+            while (state->current_num < 256)
+            {
+                if (state->placed[state->current_num] == -1 &&
+                    (state->options[4 * state->current_num + (state->choice >> 6)] &
+                     (1ULL << (state->choice & 63))))
+                    break;
+                state->current_num++;
+            }
+
+            // no more candidates, backtrack
+            if (state->current_num >= 256)
+            {
+                depth--;
+                continue;
+            }
+
+            memcpy(stack[depth + 1].lattice, state->lattice, 256 * sizeof(int16_t));
+            memcpy(stack[depth + 1].options, state->options, 1024 * sizeof(uint64_t));
+            memcpy(stack[depth + 1].placed, state->placed, 256 * sizeof(int16_t));
+            stack[depth + 1].is_init = 0;
+
+            int can_place = place_number(stack[depth + 1].lattice, stack[depth + 1].options,
+                                         stack[depth + 1].placed, state->current_num, state->choice);
+            if (can_place)
+                depth++;
+        }
+    }
+
+    // exhausted search options
+    return 0;
 }
