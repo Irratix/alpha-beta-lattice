@@ -59,7 +59,8 @@ export const back_track = async function (lattice, options, placed, depth = 0) {
             while (mask) {
                 const i = w * 64 + ctz_bi(mask);
                 let lattice_loc = Int16Array.from(lattice);
-                let options_loc = BigUint64Array.from(options);
+                let options_loc = new BigUint64Array(options.length);
+                options_loc.set(options);
                 let placed_loc = Int16Array.from(placed);
                 const result = place_number(lattice_loc, options_loc, placed_loc, value, i);
                 if (result.can_place === false) {
@@ -82,7 +83,8 @@ export const back_track = async function (lattice, options, placed, depth = 0) {
         for (let num = 0; num < 256; num++) {
             if ((options[4 * num + pos_offset] & pos_mask) === 0n) continue;
             let lattice_loc = Int16Array.from(lattice);
-            let options_loc = BigUint64Array.from(options);
+            let options_loc = new BigUint64Array(options.length);
+            options_loc.set(options);
             let placed_loc = Int16Array.from(placed);
             const result = place_number(lattice_loc, options_loc, placed_loc, num, pos);
             if (result.can_place === false) continue;
