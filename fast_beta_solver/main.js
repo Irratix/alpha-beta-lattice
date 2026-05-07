@@ -41,7 +41,7 @@ export const initial_filter = function (options) {
 }
 
 
-export const get_solution = function() {
+export const get_solution = function () {
     const ptr = get_solution_wasm();
     return new Int16Array(wasmModule.HEAPU8.buffer, ptr, 256);
 }
@@ -72,13 +72,11 @@ const solve = async function () {
         await nextFrame();
         console.log(i);
     }
-
-    // return await back_track(lattice, options, placed);
 };
 
 (async () => {
     const t = new Date();
-    const solution = await solve();
+    await solve();
     console.log("done!");
     console.log("took", (new Date() - t) / 1000, "seconds");
 })();

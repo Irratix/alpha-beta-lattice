@@ -112,10 +112,6 @@ int place_number(int16_t *lattice, uint64_t *opt, int16_t *placed, int num, int 
         return 0;
     lattice[pos] = num;
     placed[num] = pos;
-    opt[4 * num] = 0;
-    opt[4 * num + 1] = 0;
-    opt[4 * num + 2] = 0;
-    opt[4 * num + 3] = 0;
 
     filter_search_space(opt, num, pos);
 
@@ -142,6 +138,7 @@ void select_idx(int16_t *lattice, uint64_t *options, int16_t *placed, int *out)
     }
 
     // second we check if there are positions with fewer available numbers
+    int h = 0;
     for (int key = 0; key < 256; key++)
     {
         if (lattice[key] != -1)
@@ -154,11 +151,22 @@ void select_idx(int16_t *lattice, uint64_t *options, int16_t *placed, int *out)
             if (options[4 * num + (key >> 6)] & (1ULL << (key & 63)))
                 count++;
         }
-        if (count < choice_amt)
+        int h_cur = 0;
+        int x = key & 15, y = key >> 4;
+        int dx[] = {1, 1, 1, 0, -1, -1, -1, 0};
+        int dy[] = {-1, 0, 1, 1, 1, 0, -1, -1};
+        for (int d = 0; d < 8; d++)
+        {
+            int nx = x + dx[d], ny = y + dy[d];
+            if (nx >= 0 && nx < 16 && ny >= 0 && ny < 16)
+                h_cur += (lattice[ny * 16 + nx] != -1);
+        }
+        if (count < choice_amt || (choice == choice_amt && h_cur > h))
         {
             choice_amt = count;
             choice = key;
             choice_type = 1;
+            h = h_cur;
         }
     }
     out[0] = choice;
