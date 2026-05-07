@@ -130,7 +130,7 @@ void select_idx(int16_t *lattice, uint64_t *options, int16_t *placed, int *out)
         if (placed[i] != -1)
             continue;
         int options_n = count_ones(options, i);
-        if (options_n < choice_amt && options_n != 0)
+        if (options_n < choice_amt)
         {
             choice_amt = options_n;
             choice = i;
